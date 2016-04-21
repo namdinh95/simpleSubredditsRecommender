@@ -2,50 +2,43 @@ import org.apache.spark.mllib.recommendation.ALS
 import org.apache.spark.mllib.recommendation.MatrixFactorizationModel
 import org.apache.spark.mllib.recommendation.Rating
 
-val training_RDD = sc.textFile("training-data.txt").map(line => line.split("\t")).map(tokens => (tokens(0), tokens(1), tokens(2))).cache();
+val data = sc.textFile("../data-files/dataset-rating-format.txt")
+val ratings = data.map(line => line.split(",")).map(tokens => Rating(tokens(0).toInt, tokens(1).toInt, tokens(2).toDouble))
 
-// training_RDD.take(10);
+val ratingsSplitArray = ratings.randomSplit(Array(0.8, 0.2))
+val trainingData = ratingsSplitArray(0)
+val validationData = ratingsSplitArray(1)
 
-val validation_RDD = sc.textFile("validation-data.txt").map(line => line.split("\t")).map(tokens => (tokens(0), tokens(1), tokens(2))).cache();
-
-// validation_RDD.take(10);
-
-val test_RDD = sc.textFile("test-data.txt").map(line => line.split("\t")).map(tokens => (tokens(0), tokens(1), tokens(2))).cache();
-
-// test_RDD.take(10);
+val validationForPredictionData = validationData.map(rating => (rating.user, rating.product))
 
 // Build the recommendation model using ALS
-val rank = 10
+val ranks = List(4, 5, 6, 7, 8, 9, 10)
 val numIterations = 10
-val model = ALS.train(training_RDD, rank, numIterations, 0.01)
 
-// var iterations = 10
-// var regularization_parameter = 0.1
-// var ranks = List(4, 8, 12)
-// var errors = List(0, 0, 0)
-// var err = 0
-// var tolerance = 0.02
+var rank = 0
+var bestRank = -1
+var minError = Double.MaxValue
+var tolerance = 10
+for(rank <- ranks) {
+	val model = ALS.trainImplicit(trainingData, rank, numIterations)
 
-// var min_error = Float.MaxValue
-// var best_rank = -1
-// var best_iteration = -1
+	// Evaluate the model on rating data
+	val predictions = model.predict(validationForPredictionData).map(rating => ((rating.user, rating.product), rating.rating))
+	val ratesAndPreds = validationData.map(rating => ((rating.user, rating.product), rating.rating)).join(predictions)
+	val RMSE = scala.math.sqrt(ratesAndPreds.map(el => scala.math.pow(el._2._2 - el._2._1, 2)).mean())
+	val accuracy = (ratesAndPreds.filter(el => scala.math.abs(el._2._2 - el._2._1) < tolerance).count().toDouble / ratesAndPreds.count()) * 100
+	println("For rank " + rank + " the RMSE is " + RMSE + " and accuracy is " + accuracy + "%")
 
-// // initialize to dummy value
-// var rank = 5
+	if(RMSE < minError) {
+		minError = RMSE
+		bestRank = rank
+	}
+}
 
-// for(rank <- ranks) {
-//     var model = ALS.train(training_RDD, rank, iterations, regularization_parameter)
-//     var predictions = model.predict(validation_for_predict_RDD).map(r => ((r._1, r._2, r._3)))
-//     var rates_and_preds = validation_RDD.map(r => (r._1.toInt(), r._2.toInt(), r._3.parseDouble())).join(predictions)
-//     var error = math.sqrt(rates_and_preds.map(r => (math.pow(r(1)(0) - r(1)(1), 2)).mean())
+println("The best model was trained with rank " + bestRank)
 
-//     errors(err) = error
-//     err += 1
-//     println(s"For rank $rank the RMSE is $error")
-//     if (error < min_error) {
-//         min_error = error
-//         best_rank = rank
-//     }
-// }
+// Save and load model
+// model.save(sc, "target/tmp/myCollaborativeFilter")
+// val sameModel = MatrixFactorizationModel.load(sc, "target/tmp/myCollaborativeFilter")
 
 System.exit(0)
