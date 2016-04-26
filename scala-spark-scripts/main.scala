@@ -19,8 +19,10 @@ var rank = 0
 var bestRank = -1
 var minError = Double.MaxValue
 var tolerance = 10
+var model: MatrixFactorizationModel = null
+
 for(rank <- ranks) {
-	val model = ALS.trainImplicit(trainingData, rank, numIterations)
+	model = ALS.trainImplicit(trainingData, rank, numIterations)
 
 	// Evaluate the model on rating data
 	val predictions = model.predict(validationForPredictionData).map(rating => ((rating.user, rating.product), rating.rating))
@@ -38,7 +40,7 @@ for(rank <- ranks) {
 println("The best model was trained with rank " + bestRank)
 
 // Save and load model
-// model.save(sc, "target/tmp/myCollaborativeFilter")
+model.save(sc, "target/tmp/myCollaborativeFilter")
 // val sameModel = MatrixFactorizationModel.load(sc, "target/tmp/myCollaborativeFilter")
 
 System.exit(0)

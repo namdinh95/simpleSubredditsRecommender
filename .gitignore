@@ -1,0 +1,3 @@
+/data-files
+/scala-spark-scripts/*
+!/scala-spark-scripts/*.scala
