@@ -1,7 +1,12 @@
 # Simple Subreddits Recommender System
-[Private]
 
-Simple Big Data project to build a recommender system that recommends subreddits to users based on their participation.
+A Big Data project to build a recommender system that recommends subreddits to users based on their participation.
+
+The Reddit dataset can be found here: https://goo.gl/GHckIi
+
+### Pre-process the data
+
+Run the Python script first to re-order the unorganized keys in the JSON file so that Pig can properly filter the data.
 
 ### Running Scala Spark scripts
 
